@@ -55,6 +55,8 @@ export default function App(){
   var s14=_s(""),cp=s14[0],setCp=s14[1];
   var s15=_s(null),exp=s15[0],setExp=s15[1];
   var s16=_s(""),errMsg=s16[0],setErrMsg=s16[1];
+  var s17=_s(""),loginPin=s17[0],setLoginPin=s17[1];
+  var s18=_s(""),regPin=s18[0],setRegPin=s18[1];
 
   var fl=function(m){setToast(m);setTimeout(function(){setToast("")},2500)};
 
@@ -79,16 +81,22 @@ export default function App(){
 
   var doLogin=async function(){
     var ph=lp.trim();if(!ph)return fl("Ingresá teléfono");
+    var pin=loginPin.trim();if(!pin||pin.length<4)return fl("Ingresá tu PIN (4 dígitos)");
     var p=players.find(function(x){return x.phone===ph});
     if(!p)return fl("Teléfono no registrado");
+    if(!p.pin)return fl("Todavía no te registraste. Tocá Registrate.");
+    if(p.pin!==pin)return fl("PIN incorrecto");
     setMe(p);localStorage.setItem("prode_sid",p.id);setVw("home");
   };
   var doReg=async function(){
-    var nm=rn2.trim(),ph=rp2.trim();
-    if(!nm||!ph)return fl("Completá todo");
+    var nm=rn2.trim(),ph=rp2.trim(),pin=regPin.trim();
+    if(!nm||!ph||!pin)return fl("Completá nombre, teléfono y PIN");
+    if(pin.length<4)return fl("El PIN debe tener al menos 4 dígitos");
     if(PH.indexOf(ph)===-1)return fl("Número no autorizado");
-    if(players.find(function(x){return x.phone===ph}))return fl("Ya registrado");
-    var r=await db("players",{method:"POST",body:JSON.stringify({name:nm,phone:ph})});
+    var existing=players.find(function(x){return x.phone===ph});
+    if(existing&&existing.pin)return fl("Ya registrado. Usá Entrar.");
+    if(existing){await db("players?id=eq."+existing.id,{method:"PATCH",body:JSON.stringify({name:nm,pin:pin})});var updated=Object.assign({},existing,{name:nm,pin:pin});setMe(updated);localStorage.setItem("prode_sid",updated.id);await load();setVw("home");fl("¡Bienvenido!");return;}
+    var r=await db("players",{method:"POST",body:JSON.stringify({name:nm,phone:ph,pin:pin})});
     if(r&&r[0]){setMe(r[0]);localStorage.setItem("prode_sid",r[0].id);await load();setVw("home");fl("¡Bienvenido!");}
     else fl("Error al registrar");
   };
@@ -200,7 +208,9 @@ export default function App(){
       </div>
       {vw==="login"?(<div>
         <label style={lb}>Tu teléfono (con código de país)</label>
-        <input type="tel" value={lp} onChange={function(e){setLp(e.target.value)}} placeholder="+549..." style={fi} onKeyDown={function(e){if(e.key==="Enter")doLogin()}}/>
+        <input type="tel" value={lp} onChange={function(e){setLp(e.target.value)}} placeholder="+549..." style={fi}/>
+        <label style={{fontSize:10,fontWeight:600,color:"#6b7a94",display:"block",marginBottom:4,marginTop:10}}>Tu PIN</label>
+        <input type="password" inputMode="numeric" maxLength={6} value={loginPin} onChange={function(e){setLoginPin(e.target.value.replace(/\D/g,""))}} placeholder="4 dígitos" style={fi} onKeyDown={function(e){if(e.key==="Enter")doLogin()}}/>
         <button onClick={doLogin} style={pb}>Entrar</button>
         <p style={{textAlign:"center",marginTop:14,fontSize:12,color:"#6b7a94"}}>¿Primera vez? <span onClick={function(){setVw("register")}} style={{color:"#2d7af6",cursor:"pointer",fontWeight:700}}>Registrate</span></p>
       </div>):(<div>
@@ -208,6 +218,8 @@ export default function App(){
         <input value={rn2} onChange={function(e){setRn2(e.target.value)}} placeholder="Ej: Juan" style={fi}/>
         <label style={{fontSize:10,fontWeight:600,color:"#6b7a94",display:"block",marginBottom:4,marginTop:10}}>Tu teléfono</label>
         <input type="tel" value={rp2} onChange={function(e){setRp2(e.target.value)}} placeholder="+549..." style={fi}/>
+        <label style={{fontSize:10,fontWeight:600,color:"#6b7a94",display:"block",marginBottom:4,marginTop:10}}>Elegí un PIN (4 dígitos mínimo)</label>
+        <input type="password" inputMode="numeric" maxLength={6} value={regPin} onChange={function(e){setRegPin(e.target.value.replace(/\D/g,""))}} placeholder="Ej: 1234" style={fi}/>
         <button onClick={doReg} style={pb}>Registrarme</button>
         <p style={{textAlign:"center",marginTop:14,fontSize:12,color:"#6b7a94"}}>¿Cuenta? <span onClick={function(){setVw("login")}} style={{color:"#2d7af6",cursor:"pointer",fontWeight:700}}>Entrá</span></p>
       </div>)}
@@ -231,9 +243,14 @@ export default function App(){
 
     {vw==="home"?<div>
       <div style={cd}><div style={ct}>🏆 ELEGÍ AL CAMPEÓN</div>
-        {me&&me.champion_pick?<div style={{textAlign:"center"}}><div style={{fontSize:12,color:"#6b7a94",marginBottom:6}}>Tu elección:</div><div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span style={{fontSize:22,fontWeight:800,fontFamily:FH,color:"#d4af37"}}>{me.champion_pick}</span></div></div>
-        :canCh?<div><div style={{fontSize:11,color:"#6b7a94",marginBottom:6}}>+10 pts si acertás</div><select value={cp} onChange={function(e){setCp(e.target.value)}} style={fi}><option value="">Seleccioná...</option>{teams.slice().sort(function(a,b){return a.name.localeCompare(b.name)}).map(function(t){return <option key={t.id} value={t.name}>{t.name}</option>})}</select><button onClick={doChamp} style={{width:"100%",padding:"11px",background:cp?"linear-gradient(135deg,#2d7af6,#1d5bbf)":"#1f2d42",border:"none",borderRadius:7,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:12}}>Confirmar Campeón</button></div>
-        :<div style={{fontSize:11,color:"#6b7a94",textAlign:"center"}}>Plazo terminado</div>}
+        {canCh?<div>
+          {me&&me.champion_pick?<div style={{textAlign:"center",marginBottom:10}}><div style={{fontSize:12,color:"#6b7a94",marginBottom:4}}>Tu elección actual:</div><div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span style={{fontSize:22,fontWeight:800,fontFamily:FH,color:"#d4af37"}}>{me.champion_pick}</span></div><div style={{fontSize:9,color:"#6b7a94",marginTop:4}}>Podés cambiarlo hasta el 1° partido</div></div>:null}
+          <div style={{fontSize:11,color:"#6b7a94",marginBottom:6}}>+10 pts si acertás. {me&&me.champion_pick?"Cambiá tu elección:":"Elegí antes del 1° partido:"}</div>
+          <select value={cp} onChange={function(e){setCp(e.target.value)}} style={fi}><option value="">Seleccioná...</option>{teams.slice().sort(function(a,b){return a.name.localeCompare(b.name)}).map(function(t){return <option key={t.id} value={t.name}>{t.name}</option>})}</select>
+          <button onClick={doChamp} style={{width:"100%",padding:"11px",background:cp?"linear-gradient(135deg,#2d7af6,#1d5bbf)":"#1f2d42",border:"none",borderRadius:7,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:12}}>{me&&me.champion_pick?"Cambiar Campeón":"Confirmar Campeón"}</button>
+        </div>
+        :me&&me.champion_pick?<div style={{textAlign:"center"}}><div style={{fontSize:12,color:"#6b7a94",marginBottom:6}}>Tu elección:</div><div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span style={{fontSize:22,fontWeight:800,fontFamily:FH,color:"#d4af37"}}>{me.champion_pick}</span></div><div style={{fontSize:9,color:"#ef4444",marginTop:4}}>🔒 Plazo cerrado</div></div>
+        :<div style={{fontSize:11,color:"#6b7a94",textAlign:"center"}}>Plazo terminado - no elegiste campeón</div>}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7,marginBottom:12}}>
         <div style={cd}><div style={{textAlign:"center"}}><div style={{fontSize:20}}>⚽</div><div style={{fontSize:18,fontWeight:800,fontFamily:FH,color:"#d4af37"}}>{finCount}/{matches.length}</div><div style={{fontSize:9,color:"#6b7a94"}}>Jugados</div></div></div>
