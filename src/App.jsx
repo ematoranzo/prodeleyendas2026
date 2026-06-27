@@ -68,7 +68,7 @@ function BracketCard({home, away, w}){
   </div>;
 }
 
-function KnockoutBracket({matches, teams}){
+function KnockoutBracket({matches, teams, renderMatch}){
   const [bracketView, setBracketView]=useState("full");
 
   function T(id){return id?teams.find(function(t){return t.id===id})||null:null;}
@@ -99,27 +99,9 @@ function KnockoutBracket({matches, teams}){
           return <button key={x[0]} onClick={function(){setBracketView(x[0])}} style={{background:bracketView===x[0]?"#d4af37":"#131927",border:bracketView===x[0]?"1px solid #d4af37":"1px solid #1f2d42",color:bracketView===x[0]?"#000":"#6b7a94",padding:"5px 10px",borderRadius:5,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:FH}}>{x[1]}</button>;
         })}
       </div>
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {phaseMatches.map(function(m){
-          var s=matchToSlot(m);
-          return <div key={m.id} style={{background:"#131927",border:"1px solid #1f2d42",borderRadius:8,padding:"10px 12px"}}>
-            <div style={{fontSize:9,color:"#6b7a94",marginBottom:6}}>{PHASE_LABELS[m.phase]||m.phase} · {fmtD(m.kickoff_at)}</div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <div style={{display:"flex",alignItems:"center",gap:5,flex:1,justifyContent:"flex-end"}}>
-                <span style={{fontSize:12,fontWeight:600,color:"#e8ecf4"}}>{s.home?s.home.name:<span style={{color:"#4a5568",fontStyle:"italic"}}>Por definir</span>}</span>
-                {s.home&&s.home.flag?<img src={s.home.flag} style={{width:22,height:15,objectFit:"cover",borderRadius:2,border:"1px solid rgba(255,255,255,0.1)"}} alt="" onError={function(e){e.target.style.display="none"}}/>:<div style={{width:22,height:15,background:"#1f2d42",borderRadius:2}}></div>}
-              </div>
-              <div style={{minWidth:50,textAlign:"center"}}>
-                {m.home_goals!=null?<span style={{fontSize:18,fontWeight:800,fontFamily:FH,color:"#d4af37"}}>{m.home_goals} - {m.away_goals}</span>:<span style={{fontSize:10,color:"#4a5568"}}>vs</span>}
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:5,flex:1}}>
-                {s.away&&s.away.flag?<img src={s.away.flag} style={{width:22,height:15,objectFit:"cover",borderRadius:2,border:"1px solid rgba(255,255,255,0.1)"}} alt="" onError={function(e){e.target.style.display="none"}}/>:<div style={{width:22,height:15,background:"#1f2d42",borderRadius:2}}></div>}
-                <span style={{fontSize:12,fontWeight:600,color:"#e8ecf4"}}>{s.away?s.away.name:<span style={{color:"#4a5568",fontStyle:"italic"}}>Por definir</span>}</span>
-              </div>
-            </div>
-          </div>;
-        })}
-        {phaseMatches.length===0&&<div style={{color:"#4a5568",textAlign:"center",fontSize:12,padding:20}}>Fase aún no disponible</div>}
+      <div style={{display:"flex",flexDirection:"column",gap:0}}>
+        {phaseMatches.map(function(m){return renderMatch(m,true);})}
+        {phaseMatches.length===0&&<div style={{color:"#4a5568",textAlign:"center",fontSize:12,padding:20,background:"#131927",borderRadius:8,border:"1px solid #1f2d42"}}>Fase aún no disponible</div>}
       </div>
     </div>;
   }
@@ -501,7 +483,7 @@ export default function App(){
 
     {vw==="bracket"?<div>
       <div style={{fontFamily:FH,fontSize:18,fontWeight:800,margin:"14px 0 10px"}}>⚽ Cruces</div>
-      <KnockoutBracket matches={knockoutMatches} teams={teams}/>
+      <KnockoutBracket matches={knockoutMatches} teams={teams} renderMatch={renderMatch}/>
     </div>:null}
 
     {vw==="rules"?<div>
