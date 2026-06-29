@@ -106,27 +106,63 @@ function KnockoutBracket({matches, teams, renderMatch}){
     </div>;
   }
 
-  // Full bracket SVG
+  // Full bracket SVG — FIFA correct structure
+  // 4 blocks per side, each block = 2 r32 matches → 1 r16 match
+  // Block pairs share a QF slot, QF pairs share a SF slot
+  //
+  // LEFT SIDE (phase_order 1-8 of r32, 1-4 of r16, 1-2 of qf, sf[0]):
+  //   Block A: r32[0,1] → r16[0]  \  → qf[0]   //   Block B: r32[2,3] → r16[1]  /            → sf[0] → FINAL
+  //   Block C: r32[4,5] → r16[2]  \  → qf[1] /
+  //   Block D: r32[6,7] → r16[3]  /
+  //
+  // RIGHT SIDE (mirror, r32[8-15], r16[4-7], qf[2-3], sf[1]):
+  //   Block E: r32[8,9]   → r16[4]  \  → qf[2]   //   Block F: r32[10,11] → r16[5]  /            → sf[1] → FINAL
+  //   Block G: r32[12,13] → r16[6]  \  → qf[3] /
+  //   Block H: r32[14,15] → r16[7]  /
+
   const CARD_W=130, CARD_H=42, GAP=30;
   const COL=CARD_W+GAP;
-  const SVG_H=820, LBL=20, OY=LBL;
-  function cy(round,idx){var slots={r32:SVG_H/8,r16:SVG_H/4,qf:SVG_H/2,sf:SVG_H};return slots[round]*idx+slots[round]/2+OY;}
-
-  const colX={lr32:0,lr16:COL,lqf:COL*2,lsf:COL*3,fin:COL*4,rsf:COL*4+CARD_W+GAP*2,rqf:COL*4+CARD_W+GAP*2+COL,rr16:COL*4+CARD_W+GAP*2+COL*2,rr32:COL*4+CARD_W+GAP*2+COL*3};
-  const TW=colX.rr32+CARD_W;
+  // SVG height: 16 r32 slots total, 8 per side → each slot = SVG_H/8
+  const SVG_H=840, LBL=20, OY=LBL;
   const LC="rgba(100,120,160,0.4)";
+
+  // Y position helpers — each round has evenly spaced slots
+  // r32: 8 slots per side, slot height = SVG_H/8
+  // r16: 4 slots per side, slot height = SVG_H/4
+  // qf:  2 slots per side, slot height = SVG_H/2
+  // sf:  1 slot per side,  slot height = SVG_H
+  function cy(round,idx){
+    var slots={r32:SVG_H/8,r16:SVG_H/4,qf:SVG_H/2,sf:SVG_H};
+    var s=slots[round];
+    return s*idx+s/2+OY;
+  }
+
+  // Column X positions
+  const colX={
+    lr32:0,
+    lr16:COL,
+    lqf:COL*2,
+    lsf:COL*3,
+    fin:COL*4,
+    rsf:COL*4+CARD_W+GAP*2,
+    rqf:COL*4+CARD_W+GAP*2+COL,
+    rr16:COL*4+CARD_W+GAP*2+COL*2,
+    rr32:COL*4+CARD_W+GAP*2+COL*3,
+  };
+  const TW=colX.rr32+CARD_W;
 
   function Line({x1,y1,x2,y2}){return <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={LC} strokeWidth="1.5"/>;}
   function PairConn({x1,ya,yb,x2,yt,dir}){
     var mid=(ya+yb)/2;
     var mx=dir==="r"?x1+GAP*0.55:x1-GAP*0.55;
-    return <g><Line x1={x1} y1={ya} x2={mx} y2={ya}/><Line x1={x1} y1={yb} x2={mx} y2={yb}/><Line x1={mx} y1={ya} x2={mx} y2={yb}/><Line x1={mx} y1={mid} x2={x2} y2={yt}/></g>;
+    return <g>
+      <Line x1={x1} y1={ya} x2={mx} y2={ya}/>
+      <Line x1={x1} y1={yb} x2={mx} y2={yb}/>
+      <Line x1={mx} y1={ya} x2={mx} y2={yb}/>
+      <Line x1={mx} y1={mid} x2={x2} y2={yt}/>
+    </g>;
   }
-  function Lbl({x,text}){return <text x={x+CARD_W/2} y={12} textAnchor="middle" fontSize="9" fontWeight="600" fill="#6b7a94" fontFamily="sans-serif" letterSpacing="0.07em" textTransform="uppercase">{text}</text>;}
-
-  // build slots
-  var leftSlots=r32.slice(0,8);
-  var rightSlots=r32.slice(8,16);
+  function Lbl({x,text}){return <text x={x+CARD_W/2} y={12} textAnchor="middle" fontSize="9" fontWeight="600" fill="#6b7a94" fontFamily="sans-serif" letterSpacing="0.07em">{text}</text>;}
 
   function ForeignCard({x,y,slot,w}){
     var s=slot||{home:null,away:null};
@@ -135,15 +171,12 @@ function KnockoutBracket({matches, teams, renderMatch}){
     </foreignObject>;
   }
 
-  // Build r16/qf/sf TBD slots
-  var lr16slots=[0,1,2,3].map(function(i){return r16[i]?matchToSlot(r16[i]):{home:null,away:null};});
-  var lqfslots=[0,1].map(function(i){return qf[i]?matchToSlot(qf[i]):{home:null,away:null};});
-  var lsfslot=sf[0]?matchToSlot(sf[0]):{home:null,away:null};
-  var rsfslot=sf[1]?matchToSlot(sf[1]):{home:null,away:null};
-  var rqfslots=[0,1].map(function(i){return qf[i+2]?matchToSlot(qf[i+2]):{home:null,away:null};});
-  var rr16slots=[0,1,2,3].map(function(i){return r16[i+4]?matchToSlot(r16[i+4]):{home:null,away:null};});
+  function ms(arr,i){return arr[i]?matchToSlot(arr[i]):{home:null,away:null};}
+
   var finSlot=fin?matchToSlot(fin):{home:null,away:null};
   var thirdSlot=third?matchToSlot(third):{home:null,away:null};
+  var lsfSlot=sf[0]?matchToSlot(sf[0]):{home:null,away:null};
+  var rsfSlot=sf[1]?matchToSlot(sf[1]):{home:null,away:null};
 
   return <div>
     <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}}>
@@ -153,7 +186,6 @@ function KnockoutBracket({matches, teams, renderMatch}){
     </div>
     <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
       <svg width={TW} height={SVG_H+LBL} xmlns="http://www.w3.org/2000/svg">
-        {/* Labels */}
         <Lbl x={colX.lr32} text="16AVOS"/>
         <Lbl x={colX.lr16} text="8VOS"/>
         <Lbl x={colX.lqf} text="CUARTOS"/>
@@ -164,54 +196,69 @@ function KnockoutBracket({matches, teams, renderMatch}){
         <Lbl x={colX.rr16} text="8VOS"/>
         <Lbl x={colX.rr32} text="16AVOS"/>
 
-        {/* LEFT R32 cards */}
-        {leftSlots.map(function(m,i){return <ForeignCard key={"lr32_"+i} x={colX.lr32} y={cy("r32",i)} slot={matchToSlot(m)}/>;}) }
-        {/* LEFT R16 */}
-        {lr16slots.map(function(s,i){return <ForeignCard key={"lr16_"+i} x={colX.lr16} y={cy("r16",i)} slot={s}/>;}) }
-        {/* LEFT QF */}
-        {lqfslots.map(function(s,i){return <ForeignCard key={"lqf_"+i} x={colX.lqf} y={cy("qf",i)} slot={s}/>;}) }
-        {/* LEFT SF */}
-        <ForeignCard x={colX.lsf} y={cy("sf",0)} slot={lsfslot}/>
-        {/* FINAL */}
+        {/* ── LEFT R32 (phase_order 1-8) ── */}
+        {r32.slice(0,8).map(function(m,i){return <ForeignCard key={"lr32_"+i} x={colX.lr32} y={cy("r32",i)} slot={matchToSlot(m)}/>;}) }
+
+        {/* ── LEFT R16 (phase_order 1-4) ── */}
+        {[0,1,2,3].map(function(i){return <ForeignCard key={"lr16_"+i} x={colX.lr16} y={cy("r16",i)} slot={ms(r16,i)}/>;}) }
+
+        {/* ── LEFT QF (phase_order 1-2) ── */}
+        {[0,1].map(function(i){return <ForeignCard key={"lqf_"+i} x={colX.lqf} y={cy("qf",i)} slot={ms(qf,i)}/>;}) }
+
+        {/* ── LEFT SF ── */}
+        <ForeignCard x={colX.lsf} y={cy("sf",0)} slot={lsfSlot}/>
+
+        {/* ── FINAL ── */}
+        <rect x={colX.fin} y={cy("sf",0)-CARD_H/2-14} width={CARD_W} height={12} rx="3" fill="#185FA5"/>
+        <text x={colX.fin+CARD_W/2} y={cy("sf",0)-CARD_H/2-5} textAnchor="middle" fontSize="8" fontWeight="600" fill="#fff" fontFamily="sans-serif" letterSpacing="0.07em">FINAL · 19 JUL</text>
         <ForeignCard x={colX.fin} y={cy("sf",0)} slot={finSlot} w={CARD_W}/>
-        {/* THIRD */}
-        <rect x={colX.fin} y={cy("sf",0)+CARD_H/2+10} width={CARD_W} height={CARD_H+8} rx="5" fill="#131927" stroke="#1f2d42" strokeWidth="0.5"/>
-        <text x={colX.fin+CARD_W/2} y={cy("sf",0)+CARD_H/2+22} textAnchor="middle" fontSize="8" fill="#6b7a94" fontFamily="sans-serif" letterSpacing="0.06em">3ER PUESTO · 18 JUL</text>
+
+        {/* ── 3ER PUESTO ── */}
+        <rect x={colX.fin} y={cy("sf",0)+CARD_H/2+10} width={CARD_W} height={12} rx="3" fill="#1f2d42"/>
+        <text x={colX.fin+CARD_W/2} y={cy("sf",0)+CARD_H/2+20} textAnchor="middle" fontSize="8" fill="#6b7a94" fontFamily="sans-serif" letterSpacing="0.06em">3ER PUESTO · 18 JUL</text>
         <foreignObject x={colX.fin} y={cy("sf",0)+CARD_H/2+24} width={CARD_W} height={CARD_H}>
           <BracketCard home={thirdSlot.home} away={thirdSlot.away} w={CARD_W}/>
         </foreignObject>
-        {/* RIGHT SF */}
-        <ForeignCard x={colX.rsf} y={cy("sf",0)} slot={rsfslot}/>
-        {/* RIGHT QF */}
-        {rqfslots.map(function(s,i){return <ForeignCard key={"rqf_"+i} x={colX.rqf} y={cy("qf",i)} slot={s}/>;}) }
-        {/* RIGHT R16 */}
-        {rr16slots.map(function(s,i){return <ForeignCard key={"rr16_"+i} x={colX.rr16} y={cy("r16",i)} slot={s}/>;}) }
-        {/* RIGHT R32 */}
-        {rightSlots.map(function(m,i){return <ForeignCard key={"rr32_"+i} x={colX.rr32} y={cy("r32",i)} slot={matchToSlot(m)}/>;}) }
 
-        {/* LEFT CONNECTORS */}
+        {/* ── RIGHT SF ── */}
+        <ForeignCard x={colX.rsf} y={cy("sf",0)} slot={rsfSlot}/>
+
+        {/* ── RIGHT QF (phase_order 3-4) ── */}
+        {[0,1].map(function(i){return <ForeignCard key={"rqf_"+i} x={colX.rqf} y={cy("qf",i)} slot={ms(qf,i+2)}/>;}) }
+
+        {/* ── RIGHT R16 (phase_order 5-8) ── */}
+        {[0,1,2,3].map(function(i){return <ForeignCard key={"rr16_"+i} x={colX.rr16} y={cy("r16",i)} slot={ms(r16,i+4)}/>;}) }
+
+        {/* ── RIGHT R32 (phase_order 9-16) ── */}
+        {r32.slice(8,16).map(function(m,i){return <ForeignCard key={"rr32_"+i} x={colX.rr32} y={cy("r32",i)} slot={matchToSlot(m)}/>;}) }
+
+        {/* ══ LEFT CONNECTORS ══ */}
+        {/* R32 → R16: pairs (0,1)→r16[0], (2,3)→r16[1], (4,5)→r16[2], (6,7)→r16[3] */}
         {[[0,1,0],[2,3,1],[4,5,2],[6,7,3]].map(function(arr,i){
           return <PairConn key={"lc32_"+i} x1={colX.lr32+CARD_W} ya={cy("r32",arr[0])} yb={cy("r32",arr[1])} x2={colX.lr16} yt={cy("r16",arr[2])} dir="r"/>;
         })}
+        {/* R16 → QF: (r16[0],r16[1])→qf[0], (r16[2],r16[3])→qf[1] */}
         {[[0,1,0],[2,3,1]].map(function(arr,i){
           return <PairConn key={"lc16_"+i} x1={colX.lr16+CARD_W} ya={cy("r16",arr[0])} yb={cy("r16",arr[1])} x2={colX.lqf} yt={cy("qf",arr[2])} dir="r"/>;
         })}
+        {/* QF → SF: (qf[0],qf[1])→sf[0] */}
         <PairConn x1={colX.lqf+CARD_W} ya={cy("qf",0)} yb={cy("qf",1)} x2={colX.lsf} yt={cy("sf",0)} dir="r"/>
+        {/* SF → FINAL */}
         <Line x1={colX.lsf+CARD_W} y1={cy("sf",0)} x2={colX.fin} y2={cy("sf",0)}/>
 
-        {/* RIGHT CONNECTORS */}
+        {/* ══ RIGHT CONNECTORS ══ */}
+        {/* R32 → R16: pairs (0,1)→r16[4], (2,3)→r16[5], (4,5)→r16[6], (6,7)→r16[7] */}
         {[[0,1,0],[2,3,1],[4,5,2],[6,7,3]].map(function(arr,i){
           return <PairConn key={"rc32_"+i} x1={colX.rr32} ya={cy("r32",arr[0])} yb={cy("r32",arr[1])} x2={colX.rr16+CARD_W} yt={cy("r16",arr[2])} dir="l"/>;
         })}
+        {/* R16 → QF */}
         {[[0,1,0],[2,3,1]].map(function(arr,i){
           return <PairConn key={"rc16_"+i} x1={colX.rr16} ya={cy("r16",arr[0])} yb={cy("r16",arr[1])} x2={colX.rqf+CARD_W} yt={cy("qf",arr[2])} dir="l"/>;
         })}
+        {/* QF → SF */}
         <PairConn x1={colX.rqf} ya={cy("qf",0)} yb={cy("qf",1)} x2={colX.rsf+CARD_W} yt={cy("sf",0)} dir="l"/>
+        {/* SF → FINAL */}
         <Line x1={colX.rsf} y1={cy("sf",0)} x2={colX.fin+CARD_W} y2={cy("sf",0)}/>
-
-        {/* Final date label */}
-        <rect x={colX.fin} y={cy("sf",0)-CARD_H/2-14} width={CARD_W} height={12} rx="3" fill="#185FA5"/>
-        <text x={colX.fin+CARD_W/2} y={cy("sf",0)-CARD_H/2-5} textAnchor="middle" fontSize="8" fontWeight="600" fill="#ffffff" fontFamily="sans-serif" letterSpacing="0.07em">FINAL · 19 JUL</text>
       </svg>
     </div>
   </div>;
